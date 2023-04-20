@@ -1,0 +1,38 @@
+dataset_name: unav100
+dataset: {
+  json_file: ./data/unav_100/annotations/unav100_annotations.json,
+  feat_folder: ./data/unav_100/av_features,
+  file_prefix: ~,
+  file_ext: .npy,
+  max_seq_len: 224, 
+}
+model: {
+  input_dim_V: 2048, 
+  input_dim_A: 128,
+  use_abs_pe: True, 
+  class_aware: True, 
+  use_dependency: True,
+}
+opt: {
+  learning_rate: 0.0001, 
+  epochs: 40,  
+  weight_decay: 0.0001, 
+  warmup_epochs: 5, 
+}
+loader: {
+  batch_size: 16,
+}
+train_cfg: {
+  loss_weight: 1, 
+  evaluate: True,
+  eval_freq: 1,
+}
+test_cfg: {
+  pre_nms_topk: 2000,
+  max_seg_num: 100, 
+  min_score: 0.001,
+  multiclass_nms: True,
+  nms_sigma : 0.4,
+  iou_threshold: 0.7,
+}
+output_folder: ./ckpt/
