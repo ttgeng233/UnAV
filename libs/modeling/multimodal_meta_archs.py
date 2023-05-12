@@ -270,7 +270,6 @@ class PtTransformer(nn.Module):
                     'n_embd' : 128,  
                     'n_embd_ks' : embd_kernel_size,
                     'num_classes' : self.num_classes,
-                    'pyramid_level' : backbone_arch[-1] + 1,
                     'path_pdrop' : self.train_droppath,
                 }
             )
