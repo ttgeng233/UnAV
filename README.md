@@ -1,6 +1,6 @@
 # Dense-Localizing Audio-Visual Events in Untrimmed Videos: A Large-Scale Benchmark and Baseline
 
-This repository contains code for CVPR 2023 paper "Dense-Localizing Audio-Visual Events in Untrimmed Videos: A Large-Scale Benchmark and Baseline". This paper introduces the first Untrimmed Audio-Visual (UnAV-100) dataset and proposes to sovle audio-visual event localization problem in more realistic and challenging scenarios. [[Project page]](https://unav100.github.io/) [[Arxiv]](https://arxiv.org/abs/2303.12930v2). 
+This repository contains code for CVPR 2023 paper "[Dense-Localizing Audio-Visual Events in Untrimmed Videos: A Large-Scale Benchmark and Baseline](https://openaccess.thecvf.com/content/CVPR2023/html/Geng_Dense-Localizing_Audio-Visual_Events_in_Untrimmed_Videos_A_Large-Scale_Benchmark_and_CVPR_2023_paper.html)". This paper introduces the first Untrimmed Audio-Visual (UnAV-100) dataset and proposes to sovle audio-visual event localization problem in more realistic and challenging scenarios. [[Project page]](https://unav100.github.io/) [[Arxiv]](https://arxiv.org/abs/2303.12930v2). 
 
 
 ## Requirements
