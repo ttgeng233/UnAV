@@ -1,7 +1,7 @@
 dataset_name: unav100
 dataset: {
-  json_file: ./data/unav_100/annotations/unav100_annotations.json,
-  feat_folder: ./data/unav_100/av_features,
+  json_file: ./data/unav100_annotations.json,
+  feat_folder: /mnt/welles/scratch/datasets/unav100/av_features/all_feats,
   file_prefix: ~,
   file_ext: .npy,
   max_seq_len: 224, 
