@@ -4,7 +4,7 @@ from torch.nn import functional as F
 
 from .models import register_multimodal_backbone
 from .blocks import (get_sinusoid_encoding, TransformerBlock, 
-                    MaskedConv1D, LayerNorm)
+                    MaskedConv1D, LayerNorm, TemporalMaxer)
 
 
 @register_multimodal_backbone("convTransformer")
@@ -27,6 +27,7 @@ class ConvTransformerBackbone(nn.Module):
         proj_pdrop = 0.0,      # dropout rate for the projection / MLP
         path_pdrop = 0.0,      # droput rate for drop path
         use_abs_pe = False,    # use absolute position embedding
+        backbone_type = "unAV",
     ):
         super().__init__()
         assert len(arch) == 3

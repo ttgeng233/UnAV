@@ -12,6 +12,7 @@ model: {
   use_abs_pe: True, 
   class_aware: True, 
   use_dependency: True,
+  backbone_version: "maxer",  #unav, maxer
 }
 opt: {
   learning_rate: 0.0001, 
@@ -20,7 +21,7 @@ opt: {
   warmup_epochs: 5, 
 }
 loader: {
-  batch_size: 16,
+  batch_size: 10,
 }
 train_cfg: {
   loss_weight: 1, 

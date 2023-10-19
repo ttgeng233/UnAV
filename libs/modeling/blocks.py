@@ -5,6 +5,36 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+
+class TemporalMaxer(nn.Module):
+    def __init__(
+            self,
+            kernel_size,
+            stride,
+            padding,
+            n_embd):
+        super().__init__()
+        self.ds_pooling = nn.MaxPool1d(
+            kernel_size, stride=stride, padding=padding)
+        self.stride = stride
+
+    def forward(self, x, mask, **kwargs):
+
+        # out, out_mask = self.channel_att(x, mask)
+
+        if self.stride > 1:
+            # downsample the mask using nearest neighbor
+            out_mask = F.interpolate(
+                mask.to(x.dtype), size=x.size(-1)//self.stride, mode='nearest')
+        else:
+            # masking out the features
+            out_mask = mask
+
+        out = self.ds_pooling(x) * out_mask.to(x.dtype)
+
+        return out, out_mask.bool()
+    
+
 class MaskedConv1D(nn.Module):
     """
     Masked 1D convolution. Interface remains the same as Conv1d.
