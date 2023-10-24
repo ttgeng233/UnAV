@@ -27,7 +27,7 @@ class ConvTransformerBackbone(nn.Module):
         proj_pdrop = 0.0,      # dropout rate for the projection / MLP
         path_pdrop = 0.0,      # droput rate for drop path
         use_abs_pe = False,    # use absolute position embedding
-        backbone_type = "unAV",
+        branch_type = "unAV",
     ):
         super().__init__()
         assert len(arch) == 3
@@ -36,6 +36,7 @@ class ConvTransformerBackbone(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.scale_factor = scale_factor
         self.use_abs_pe = use_abs_pe
+        self.branch_type = branch_type
 
         # position embedding (1, C, T), rescaled by 1/sqrt(n_embd)
         if self.use_abs_pe:
@@ -115,23 +116,29 @@ class ConvTransformerBackbone(nn.Module):
         #cross-attention after down-sampling
         self.cross_att_Va = nn.ModuleList()
         self.cross_att_Av = nn.ModuleList()
-        for idx in range(arch[2]):
-            self.cross_att_Va.append(TransformerBlock(
-                    n_embd, n_head,
-                    n_ds_strides=(self.scale_factor, self.scale_factor),
-                    attn_pdrop=attn_pdrop,
-                    proj_pdrop=proj_pdrop,
-                    path_pdrop=path_pdrop,
+        if branch_type == "maxer": 
+            for idx in range(arch[2]):
+                self.cross_att_Va.append(TemporalMaxer(kernel_size=3, stride=self.scale_factor, padding=1, n_embd=n_embd)) 
+                self.cross_att_Av.append(TemporalMaxer(kernel_size=3, stride=self.scale_factor, padding=1, n_embd=n_embd))
+        else:
+            
+            for idx in range(arch[2]):
+                self.cross_att_Va.append(TransformerBlock(
+                        n_embd, n_head,
+                        n_ds_strides=(self.scale_factor, self.scale_factor),
+                        attn_pdrop=attn_pdrop,
+                        proj_pdrop=proj_pdrop,
+                        path_pdrop=path_pdrop,
+                    )
                 )
-            )
-            self.cross_att_Av.append(TransformerBlock(
-                    n_embd, n_head,
-                    n_ds_strides=(self.scale_factor, self.scale_factor),
-                    attn_pdrop=attn_pdrop,
-                    proj_pdrop=proj_pdrop,
-                    path_pdrop=path_pdrop,
+                self.cross_att_Av.append(TransformerBlock(
+                        n_embd, n_head,
+                        n_ds_strides=(self.scale_factor, self.scale_factor),
+                        attn_pdrop=attn_pdrop,
+                        proj_pdrop=proj_pdrop,
+                        path_pdrop=path_pdrop,
+                    )
                 )
-            )
 
         # init weights
         self.apply(self.__init_weights__)
@@ -195,11 +202,16 @@ class ConvTransformerBackbone(nn.Module):
 
         # main branch with downsampling
         for idx in range(len(self.cross_att_Va)):
-            x_V, mask_V = self.cross_att_Va[idx](out_feats_V[idx], out_feats_A[idx], mask_V)
+            if self.branch_type == "maxer": 
+                x_V, mask_V = self.cross_att_Va[idx](out_feats_V[idx], mask_V) 
+                x_A, mask_A = self.cross_att_Av[idx](out_feats_A[idx], mask_A)
+            else:
+                x_V, mask_V = self.cross_att_Va[idx](out_feats_V[idx], out_feats_A[idx], mask_V) 
+                x_A, mask_A = self.cross_att_Av[idx](out_feats_A[idx], out_feats_V[idx], mask_A)
+
             out_feats_V += (x_V, )
             out_masks_V += (mask_V, )
 
-            x_A, mask_A = self.cross_att_Av[idx](out_feats_A[idx], out_feats_V[idx], mask_A)
             out_feats_A += (x_A, )
             out_masks_A += (mask_A, )
 

@@ -12,6 +12,85 @@ from .losses import ctr_diou_loss_1d, sigmoid_focal_loss
 from ..utils import batched_nms
 
 
+class MergeHead(nn.Module):
+    """
+    1D Conv heads for classification
+    """
+    def __init__(
+        self,
+        input_dim,
+        feat_dim,
+        num_classes,
+        prior_prob=0.01,
+        num_layers=3,
+        kernel_size=3,
+        act_layer=nn.Sigmoid,
+        with_ln=False,
+        empty_cls = [],
+    ):
+        super().__init__()
+        self.act = act_layer()
+
+        # build the head
+        self.head = nn.ModuleList()
+        self.norm = nn.ModuleList()
+
+        for idx in range(num_layers-1):
+            if idx == 0:
+                in_dim = input_dim
+                out_dim = feat_dim
+            else:
+                in_dim = feat_dim
+                out_dim = feat_dim
+            
+            self.head.append(
+                MaskedConv1D(
+                    in_dim, out_dim, kernel_size,
+                    stride=1,
+                    padding=kernel_size//2,
+                    bias=(not with_ln)
+                )
+            )
+            if with_ln:
+                self.norm.append(
+                    LayerNorm(out_dim)
+                )
+            else:
+                self.norm.append(nn.Identity())
+
+        # classifier
+        self.cls_head = MaskedConv1D(
+                feat_dim, num_classes, kernel_size,
+                stride=1, padding=kernel_size//2
+            )
+
+        # use prior in model initialization to improve stability
+        # this will overwrite other weight init
+        bias_value = -(math.log((1 - prior_prob) / prior_prob))
+        torch.nn.init.constant_(self.cls_head.conv.bias, bias_value)
+
+        # a quick fix to empty categories:
+        # the weights assocaited with these categories will remain unchanged
+        # we set their bias to a large negative value to prevent their outputs
+        if len(empty_cls) > 0:
+            bias_value = -(math.log((1 - 1e-6) / 1e-6))
+            for idx in empty_cls:
+                torch.nn.init.constant_(self.cls_head.conv.bias[idx], bias_value)
+
+    def forward(self, fpn_feats, fpn_masks):
+        assert len(fpn_feats) == len(fpn_masks)
+        # apply the classifier for each pyramid level
+        out_logits = tuple()
+        for _, (cur_feat, cur_mask) in enumerate(zip(fpn_feats, fpn_masks)):
+            cur_out = cur_feat
+            for idx in range(len(self.head)):
+                cur_out, _ = self.head[idx](cur_out, cur_mask)
+                cur_out = self.act(self.norm[idx](cur_out))
+            out_logits += (cur_out, )
+
+        return out_logits
+
+
 class PtTransformerClsHead(nn.Module):
     """
     1D Conv heads for classification
@@ -202,6 +281,7 @@ class PtTransformer(nn.Module):
         test_cfg,              # other cfg for testing
         class_aware,           # if to use class-aware regression
         use_dependency,        # if to use dependency block
+        branch_type,
     ):
         super().__init__()
         self.fpn_strides = [scale_factor**i for i in range(backbone_arch[-1]+1)]
@@ -239,6 +319,16 @@ class PtTransformer(nn.Module):
         self.test_multiclass_nms = test_cfg['multiclass_nms']
         self.test_nms_sigma = test_cfg['nms_sigma']
         self.test_voting_thresh = test_cfg['voting_thresh']
+        
+        self.merge_head = MergeHead( 
+            embd_dim*2,
+            head_dim, self.num_classes,  
+            kernel_size=head_kernel_size,
+            prior_prob=self.train_cls_prior_prob,
+            with_ln=head_with_ln,
+            num_layers=head_num_layers,
+            empty_cls=train_cfg['head_empty_cls']
+        )
 
         # backbone network: conv + transformer
         assert backbone_type in ['convTransformer']
@@ -258,6 +348,7 @@ class PtTransformer(nn.Module):
                 'proj_pdrop' : self.train_dropout,
                 'path_pdrop' : self.train_droppath,
                 'use_abs_pe' : use_abs_pe,
+                'branch_type': branch_type,
             }
         )
 
@@ -311,7 +402,7 @@ class PtTransformer(nn.Module):
 
         # forward the backbone
         feats_V, feats_A, masks = self.backbone(batched_inputs_V, batched_inputs_A, batched_masks)
-
+        
         #concat audio and visual output features (B, C, T)->(B, 2C, T)
         feats_AV = [torch.cat((V, A), 1) for _, (V, A) in enumerate(zip(feats_V, feats_A))]
 
@@ -400,8 +491,7 @@ class PtTransformer(nn.Module):
         batched_masks = torch.arange(max_len)[None, :] < feats_lens[:, None]
         # push to device
         batched_inputs_visual = batched_inputs_visual.to(self.device)
-        batched_inputs_audio = batched_inputs_audio.to(self.device)
-        
+        batched_inputs_audio = batched_inputs_audio.to(self.device) 
         batched_masks = batched_masks.unsqueeze(1).to(self.device)
 
         return batched_inputs_visual, batched_inputs_audio, batched_masks
