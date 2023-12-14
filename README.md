@@ -7,7 +7,10 @@ This repository contains code for CVPR 2023 paper "[Dense-Localizing Audio-Visua
 The implemetation is based on PyTorch. Follow [INSTALL.md](INSTALL.md) to install required dependencies.
 
 ## Data preparation
-The proposed UnAV-100 dataset can be downloaded from [[Project Page]](https://unav100.github.io/), including YouTube links of raw videos, annotations and extracted features. A download script is provided for raw videos at `scripts/video_download.py`. 
+The proposed UnAV-100 dataset can be downloaded from [[Project Page]](https://unav100.github.io/), including YouTube links of raw videos, annotations and extracted features. 
+
+If you want to use your own choices of video features, you can download the raw videos from this [link](https://pan.baidu.com/s/1N2bNc288vK9PDpHkrPBx2A) (Baidu Drive, pwd: qslx). A download script is also provided for raw videos at `scripts/video_download.py`. 
+
 **Note**: after downloading data, unpack files under `data/unav100`. The folder structure should look like:
 ```
 This folder
@@ -41,10 +44,11 @@ python ./eval.py ./configs/avel_unav100.yaml ./ckpt/avel_unav100_reproduce
 ## Citation
 If you find our dataset and code are useful for your research, please cite our paper
 ```
-@article{geng2023dense,
+@inproceedings{geng2023dense,
   title={Dense-Localizing Audio-Visual Events in Untrimmed Videos: A Large-Scale Benchmark and Baseline},
   author={Geng, Tiantian and Wang, Teng and Duan, Jinming and Cong, Runmin and Zheng, Feng},
-  journal={arXiv preprint arXiv:2303.12930},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={22942--22951},
   year={2023}
 }
 ```
