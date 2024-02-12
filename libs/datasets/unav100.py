@@ -80,15 +80,26 @@ class UnAV100Dataset(Dataset):
         self.fpn_strides = [scale_factor**i for i in range(backbone_arch[-1]+1)]
         self.reg_range = regression_range
         self.class_aware = class_aware
+
+        max_div_factor = 1
+        for l, stride in enumerate(self.fpn_strides):
+            assert max_seq_len % stride == 0, "max_seq_len must be divisible by fpn stride"
+            if max_div_factor < stride:
+                max_div_factor = stride
+        self.max_div_factor = max_div_factor
+
         self.point_generator = make_generator(
             'point',
             **{
-                'max_seq_len' : self.max_seq_len * max_buffer_len_factor,
+                'max_seq_len_ori' : self.max_seq_len,
+                'max_buffer_len_factor': max_buffer_len_factor, #########
                 'fpn_levels' : len(self.fpn_strides),
                 'scale_factor' : scale_factor,
-                'regression_range' : self.reg_range
+                'regression_range' : self.reg_range,
+                'max_div_factor' : self.max_div_factor  #########
             }
         )
+
 
     def find_empty_cls(self, label_dict, num_classes):
         # find categories with out a data sample
@@ -306,7 +317,7 @@ class UnAV100Dataset(Dataset):
         # compute the gt labels for cls & reg
         gt_segments = data_dict['segments']
         gt_labels = data_dict['labels']
-        points = self.point_generator(self.fpn_strides)
+        points = self.point_generator(self.fpn_strides, feats['visual'], self.is_training)
         data_dict['gt_cls_labels'], data_dict['gt_offsets'] = self.label_points(
                 points, gt_segments, gt_labels)
         data_dict['points'] = points

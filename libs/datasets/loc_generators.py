@@ -32,23 +32,28 @@ class PointGenerator(nn.Module):
     """
     def __init__(
         self,
-        max_seq_len,        # max sequence length that the generator will buffer
+        max_seq_len_ori,        # max sequence length that the generator will buffer
+        max_buffer_len_factor,
         fpn_levels,         # number of fpn levels
         scale_factor,       # scale factor between two fpn levels
         regression_range,   # regression range (on feature grids)
+        max_div_factor,
         use_offset=False    # if to align the points at grid centers
     ):
         super().__init__()
         # sanity check, # fpn levels and length divisible
         assert len(regression_range) == fpn_levels
+        max_seq_len = max_seq_len_ori * max_buffer_len_factor
         assert max_seq_len % scale_factor**(fpn_levels - 1) == 0
 
         # save params
+        self.max_seq_len_ori = max_seq_len_ori
         self.max_seq_len = max_seq_len 
         self.fpn_levels = fpn_levels
         self.scale_factor = scale_factor
         self.regression_range = regression_range
         self.use_offset = use_offset
+        self.max_div_factor = max_div_factor
 
         # generate all points and buffer the list
         self.buffer_points = self._generate_points()
@@ -73,12 +78,24 @@ class PointGenerator(nn.Module):
 
         return BufferList(points_list)
 
-    def forward(self, fpn_strides):
+    def forward(self, fpn_strides, feats, is_training):
         # feats will be a list of torch tensors
         # assert len(feats) == self.fpn_levels
         pts_list = []
+        max_len = feats.shape[1]
         # feat_lens = [feat.shape[-1] for feat in feats]
-        feat_lens = [int(self.max_seq_len/stride) for stride in fpn_strides]
+        if is_training:
+            max_len = self.max_seq_len_ori
+        else:
+            if max_len <= self.max_seq_len_ori:
+                max_len = self.max_seq_len_ori
+            else:
+                # pad the input to the next divisible size
+                stride = self.max_div_factor
+                max_len = (max_len + (stride - 1)) // stride * stride
+            
+        feat_lens = [int(max_len/stride) for stride in fpn_strides]
+
         for feat_len, buffer_pts in zip(feat_lens, self.buffer_points):
             assert feat_len <= buffer_pts.shape[0], "Reached max buffer length for point generator"
             pts = buffer_pts[:feat_len, :]

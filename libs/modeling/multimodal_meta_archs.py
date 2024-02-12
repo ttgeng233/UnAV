@@ -354,10 +354,10 @@ class PtTransformer(nn.Module):
             return losses
 
         else:
-            points = video_list[0]['points']
+
             # decode the actions (sigmoid / stride, etc)
             results = self.inference(
-                video_list, points, fpn_masks,
+                video_list, fpn_masks,
                 out_cls_logits, out_offsets
             )
             return results
@@ -474,7 +474,7 @@ class PtTransformer(nn.Module):
     def inference(
         self,
         video_list,
-        points, fpn_masks,
+        fpn_masks,
         out_cls_logits, out_offsets
     ):
         # video_list B (list) [dict]
@@ -488,11 +488,12 @@ class PtTransformer(nn.Module):
         vid_lens = [x['duration'] for x in video_list]
         vid_ft_stride = [x['feat_stride'] for x in video_list]
         vid_ft_nframes = [x['feat_num_frames'] for x in video_list]
+        vid_points = [x['points'] for x in video_list]
 
         # 2: inference on each single video and gather the results
         # upto this point, all results use timestamps defined on feature grids
-        for idx, (vidx, fps, vlen, stride, nframes) in enumerate(
-            zip(vid_idxs, vid_fps, vid_lens, vid_ft_stride, vid_ft_nframes)
+        for idx, (vidx, fps, vlen, stride, nframes, points) in enumerate(
+            zip(vid_idxs, vid_fps, vid_lens, vid_ft_stride, vid_ft_nframes, vid_points)
         ):
             # gather per-video outputs
             cls_logits_per_vid = [x[idx] for x in out_cls_logits]
